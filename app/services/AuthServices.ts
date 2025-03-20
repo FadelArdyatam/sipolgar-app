@@ -19,7 +19,7 @@ import type {
 } from "../types/user";
 
 // Create axios instance with default config
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_URL,
   timeout: 15000, // 15 seconds timeout
   headers: {
@@ -118,12 +118,6 @@ export const register = async (userData: {
   jenis_kelamin?: string;
 }): Promise<RegisterResponse> => {
   try {
-    // Log the registration request with sensitive data redacted
-    console.log("Sending registration request with data:", {
-      ...userData,
-      password: userData.password ? "[REDACTED]" : undefined,
-    });
-
     const response = await api.post<RegisterResponse>("/register", userData);
 
     console.log("Registration response:", response.data);
@@ -218,7 +212,7 @@ export const getUserProfile = async (): Promise<UserProfile> => {
 };
 
 // Update user profile
-export const updateUserProfile = async (profileData: PersonelUpdate): Promise<UpdateProfileResponse> => {
+export const updateUserProfile = async (profileData: { personel?: PersonelUpdate } & Partial<UserProfile>): Promise<UpdateProfileResponse> => {
   try {
     console.log("Updating user profile with data:", JSON.stringify(profileData, null, 2));
 

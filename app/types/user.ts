@@ -67,7 +67,6 @@ export interface AuthState {
   requiresEmailVerification: boolean
   verificationEmail: string | null
   expiresAt: string | null
-  requiresPasswordChange: boolean
   isFirstLogin: boolean
   needsOnboarding : boolean
 }
@@ -155,6 +154,7 @@ export interface ForgotPasswordResponse {
 }
 
 export interface ChangePasswordResponse {
+  user: any
   message: string
   token?: string
 }

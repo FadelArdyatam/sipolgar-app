@@ -8,13 +8,13 @@ import OnboardingNavigator from "./OnboardingNavigator";
 import AppNavigator from "./AppNavigator";
 import { restoreUser } from "../store/auth/authSlice";
 import type { RootState, AppDispatch } from "../store";
-import ChangePasswordScreen from "../screens/auth/ChangePasswordScreen";
 
 const Stack = createNativeStackNavigator();
 
+// RootNavigator.tsx
 export default function RootNavigator() {
   const dispatch = useDispatch<AppDispatch>();
-  const { isAuthenticated, requiresPasswordChange, needsOnboarding } = useSelector(
+  const { isAuthenticated, needsOnboarding } = useSelector(
     (state: RootState) => state.auth
   );
   const [isLoading, setIsLoading] = useState(true);
@@ -51,8 +51,6 @@ export default function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!isAuthenticated ? (
         <Stack.Screen name="Auth" component={AuthNavigator} />
-      ) : requiresPasswordChange ? (
-        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
       ) : needsOnboarding ? (
         <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
       ) : (

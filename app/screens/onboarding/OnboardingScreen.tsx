@@ -16,7 +16,7 @@ import {
   Image,
 } from "react-native"
 import { useDispatch, useSelector } from "react-redux"
-import { updateUserProfile, logout, updateUserProfileLocal } from "../../store/auth/authSlice"
+import { updateUserProfile, logout, updateUserProfileLocal, setNeedsOnboarding } from "../../store/auth/authSlice"
 import { ChevronRight, ArrowLeft, Activity, Dumbbell, Award, Heart, UserCheck, Check } from "lucide-react-native"
 import type { AppDispatch, RootState } from "../../store"
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack"
@@ -33,6 +33,9 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { CommonActions } from "@react-navigation/native"
 import { PersonelUpdate, UserProfile } from "~/app/types/user"
+import { saveWeightData } from "../../services/WeightTrackingService";
+
+
 
 const { width } = Dimensions.get("window")
 
@@ -173,6 +176,7 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
       const heightNum = Number.parseFloat(height);
       const weightNum = Number.parseFloat(weight);
   
+      // Update tipe data sesuai dengan yang diharapkan
       const updateData: { personel?: PersonelUpdate } & Partial<UserProfile> = {
         personel: {
           tinggi_badan: heightNum,
@@ -185,13 +189,29 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
       await dispatch(updateUserProfile(updateData)).unwrap();
       dispatch(updateUserProfileLocal(updateData));
   
+      // Simpan data berat badan ke API
+      const today = new Date();
+      const formattedDate = today.toISOString().split('T')[0]; // Format YYYY-MM-DD
+      
+      await saveWeightData({
+        berat_badan: weightNum,
+        minggu_ke: 0, // Minggu awal
+        tgl_berat_badan: formattedDate,
+      });
+  
       await AsyncStorage.setItem("onboardingCompleted", "true");
   
       Alert.alert("Sukses", "Profil berhasil disimpan", [
         {
           text: "OK",
           onPress: () => {
-            navigation.replace("Main"); // Arahkan ke Main setelah onboarding selesai
+            // Gunakan reset untuk pindah ke Main
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'Main' }],
+              })
+            );
           },
         },
       ]);

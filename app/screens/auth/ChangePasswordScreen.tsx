@@ -32,7 +32,6 @@ type ChangePasswordScreenProps = {
 
 export default function ChangePasswordScreen({ navigation, route }: ChangePasswordScreenProps) {
   const { email, isFirstLogin } = route.params || {};
-  const { token, user, requiresPasswordChange } = useSelector((state: RootState) => state.auth);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -76,10 +75,11 @@ export default function ChangePasswordScreen({ navigation, route }: ChangePasswo
 
       console.log(navigation.getState().routes);
       // Navigate based on the flow
+      // Arahkan ke Main jika bukan forced password change
       if (isForcedPasswordChange) {
         navigation.replace("Onboarding"); // Replace current screen with Onboarding
       } else {
-        navigation.replace("Onboarding"); // Replace current screen with Main
+        navigation.replace("Main"); // Replace current screen with Main (perbaiki ini)
       }
     } catch (error) {
       console.error("Change password error:", error);

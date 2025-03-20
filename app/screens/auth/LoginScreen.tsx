@@ -46,14 +46,23 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     setLoading(true);
     try {
       const result = await dispatch(login({ username, password })).unwrap();
-  
-      // Gunakan data dari response untuk menentukan navigasi
-      if (!result.user.personel?.passwordChanged) {
-        navigation.navigate("ChangePassword", { isFirstLogin: true });
-      }else (
-        navigation.navigate("Main") 
-      )
-    } catch (error) {
+      
+      // Tambahkan log untuk debug
+      console.log("User data after login:", JSON.stringify(result.user.personel, null, 2));
+      console.log("Onboarding status:", !result.user.personel?.tinggi_badan || !result.user.personel?.berat_badan);
+      
+      // Periksa juga flag onboardingCompleted dari AsyncStorage
+      const onboardingCompleted = await AsyncStorage.getItem("onboardingCompleted");
+      console.log("Onboarding completed flag:", onboardingCompleted);
+      
+      // Gunakan kedua sumber data untuk menentukan status onboarding
+      if ((!result.user.personel?.tinggi_badan || !result.user.personel?.berat_badan) && onboardingCompleted !== "true") {
+        navigation.navigate("Onboarding");
+      } else {
+        // Jika salah satu menunjukkan onboarding selesai, anggap selesai
+        navigation.navigate("Main");
+      }
+    }catch (error) {
       console.error("Login error:", error);
       Alert.alert(
         "Login Failed",

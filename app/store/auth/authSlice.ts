@@ -12,7 +12,6 @@ const initialState: AuthState = {
   requiresEmailVerification: false,
   verificationEmail: null,
   expiresAt: null,
-  requiresPasswordChange: false,
   isFirstLogin: false,
   needsOnboarding: true,
 };
@@ -213,22 +212,20 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    restoreUser: (state, action: PayloadAction<{ token: string; user: UserProfile; expiresAt?: string }>) => {
-      state.token = action.payload.token;
-      state.user = action.payload.user;
-      state.isAuthenticated = true;
-      if (action.payload.expiresAt) {
-        state.expiresAt = action.payload.expiresAt;
-      }
+    // Ubah restoreUser action
+restoreUser: (state, action: PayloadAction<{ token: string; user: UserProfile; expiresAt?: string }>) => {
+  state.token = action.payload.token;
+  state.user = action.payload.user;
+  state.isAuthenticated = true;
+  if (action.payload.expiresAt) {
+    state.expiresAt = action.payload.expiresAt;
+  }
 
-      // Set requiresPasswordChange based on passwordChanged flag
-      state.requiresPasswordChange = !action.payload.user.personel?.passwordChanged;
-
-      // Set needsOnboarding based on tinggi_badan and berat_badan
-      const needsOnboarding =
-        !action.payload.user.personel?.tinggi_badan || !action.payload.user.personel?.berat_badan;
-      state.needsOnboarding = needsOnboarding;
-    },
+  // Set needsOnboarding based on tinggi_badan and berat_badan
+  const needsOnboarding =
+    !action.payload.user.personel?.tinggi_badan || !action.payload.user.personel?.berat_badan;
+  state.needsOnboarding = needsOnboarding;
+},
     updateUserProfileLocal: (state, action: PayloadAction<{ personel?: PersonelUpdate } & Partial<UserProfile>>) => {
       if (state.user) {
         if (action.payload.personel && state.user.personel) {
@@ -292,15 +289,13 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         state.user = action.payload.user;
         state.expiresAt = action.payload.expiresAt;
-
-        // Set requiresPasswordChange based on passwordChanged flag
-        state.requiresPasswordChange = !action.payload.user.personel?.passwordChanged;
-
+      
         // Set needsOnboarding based on tinggi_badan and berat_badan
         const needsOnboarding =
           !action.payload.user.personel?.tinggi_badan || !action.payload.user.personel?.berat_badan;
         state.needsOnboarding = needsOnboarding;
       })
+      
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
         state.error = (action.payload as string) || "Login failed";
@@ -376,15 +371,38 @@ const authSlice = createSlice({
       .addCase(changePassword.fulfilled, (state, action) => {
         state.loading = false;
         state.requiresPasswordChange = false;
-
+      
         // Update token jika ada token baru
         if (action.payload.token) {
           state.token = action.payload.token;
         }
-
+      
         // Update status passwordChanged di state
         if (state.user?.personel) {
           state.user.personel.passwordChanged = true;
+          
+          // Pastikan untuk menyimpan perubahan ini ke AsyncStorage
+          if (state.user) {
+            AsyncStorage.setItem("userData", JSON.stringify(state.user)).catch(err => 
+              console.error("Failed to update userData in AsyncStorage:", err)
+            );
+          }
+        } else {
+          // Jika personel tidak ada, kita tidak bisa membuat personel baru yang tidak lengkap
+          // Sebaiknya catat peringatan bahwa personel tidak ada
+          console.warn("User doesn't have personel data to update passwordChanged flag");
+          
+          // Alternatif: jika API menyediakan data personel dalam respons, gunakan itu
+          if (action.payload.user?.personel) {
+            if (state.user) {
+              state.user.personel = action.payload.user.personel;
+              state.user.personel.passwordChanged = true;
+              
+              AsyncStorage.setItem("userData", JSON.stringify(state.user)).catch(err => 
+                console.error("Failed to update userData in AsyncStorage:", err)
+              );
+            }
+          }
         }
       })
       .addCase(changePassword.rejected, (state, action) => {
