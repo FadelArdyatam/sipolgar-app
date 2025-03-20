@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState } from "react";
 import {
   View,
   Text,
@@ -11,56 +11,58 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-} from "react-native"
-import { useDispatch } from "react-redux"
-import { login } from "../../store/auth/authSlice"
-import { Eye, EyeOff, User, Lock } from "lucide-react-native"
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack"
-import type { AuthStackParamList } from "../../types/navigation"
-import type { AppDispatch } from "../../store"
-import AsyncStorage from "@react-native-async-storage/async-storage"
+} from "react-native";
+import { useDispatch } from "react-redux";
+import { login } from "../../store/auth/authSlice";
+import { Eye, EyeOff, User, Lock } from "lucide-react-native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { AuthStackParamList } from "../../types/navigation";
+import type { AppDispatch } from "../../store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type LoginScreenProps = {
-  navigation: NativeStackNavigationProp<AuthStackParamList, "Login">
-}
+  navigation: NativeStackNavigationProp<AuthStackParamList, "Login">;
+};
 
 export default function LoginScreen({ navigation }: LoginScreenProps) {
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const dispatch = useDispatch<AppDispatch>()
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch<AppDispatch>();
 
-  // Update the login success handler to check for first login
   const handleLogin = async () => {
     if (!username || !password) {
-      Alert.alert("Error", "Please fill in all fields")
-      return
+      Alert.alert("Error", "Please fill in all fields");
+      return;
     }
 
-    setLoading(true)
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      // Tidak ada layar sebelumnya yang dapat dikembalikan
+    }
+    
+    setLoading(true);
     try {
-      console.log("Attempting login with username:", username)
-      const result = await dispatch(login({ username, password })).unwrap()
-      console.log("Login successful")
-
-      // Check if this is the first login and password needs to be changed
-      const passwordChanged = await AsyncStorage.getItem("passwordChanged")
-      if (!passwordChanged) {
-        // The RootNavigator will handle navigation to the change password screen
-        console.log("First login detected, user will be prompted to change password")
-      }
-      // Otherwise, navigation will be handled by the auth state listener in RootNavigator
+      const result = await dispatch(login({ username, password })).unwrap();
+  
+      // Gunakan data dari response untuk menentukan navigasi
+      if (!result.user.personel?.passwordChanged) {
+        navigation.navigate("ChangePassword", { isFirstLogin: true });
+      }else (
+        navigation.navigate("Main") 
+      )
     } catch (error) {
-      console.error("Login error:", error)
+      console.error("Login error:", error);
       Alert.alert(
         "Login Failed",
         error instanceof Error ? error.message : "Please check your credentials and try again",
-      )
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-gray-50">
@@ -133,6 +135,5 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
-  )
+  );
 }
-

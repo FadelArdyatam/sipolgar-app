@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,119 +11,87 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-} from "react-native"
-import { useDispatch, useSelector } from "react-redux"
-import { Eye, EyeOff, Lock, KeyRound, ArrowLeft } from "lucide-react-native"
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import { changePassword, markPasswordChangeCompleted, logout } from "../../store/auth/authSlice"
-import type { AppDispatch, RootState } from "../../store"
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack"
-import type { AuthStackParamList } from "../../types/navigation"
+} from "react-native";
+import { useDispatch, useSelector } from "react-redux";
+import { Eye, EyeOff, Lock, KeyRound, ArrowLeft } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { changePassword, markPasswordChangeCompleted, logout } from "../../store/auth/authSlice";
+import type { AppDispatch, RootState } from "../../store";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { AuthStackParamList } from "../../types/navigation";
 
 type ChangePasswordScreenProps = {
-  navigation: NativeStackNavigationProp<AuthStackParamList, "ChangePassword">
+  navigation: NativeStackNavigationProp<AuthStackParamList, "ChangePassword">;
   route: {
     params?: {
-      email?: string
-    }
-  }
-}
+      email?: string;
+      isFirstLogin?: boolean;
+    };
+  };
+};
 
 export default function ChangePasswordScreen({ navigation, route }: ChangePasswordScreenProps) {
-  const { email } = route.params || {}
-  const { token, user, isFirstLogin, requiresPasswordChange } = useSelector((state: RootState) => state.auth)
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const dispatch = useDispatch<AppDispatch>()
+  const { email, isFirstLogin } = route.params || {};
+  const { token, user, requiresPasswordChange } = useSelector((state: RootState) => state.auth);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch<AppDispatch>();
 
-  // Determine if this is a forced password change after first login
-  const isForcedPasswordChange = isFirstLogin && requiresPasswordChange
+  const isForcedPasswordChange = isFirstLogin && requiresPasswordChange;
 
   useEffect(() => {
-    // If user is not authenticated and no email is provided, redirect to login
     if (!token && !email) {
-      navigation.replace("Login")
+      navigation.replace("Login");
     }
-  }, [token, email, navigation])
+  }, [token, email, navigation]);
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert("Error", "Harap isi semua field")
-      return
+      Alert.alert("Error", "Harap isi semua field");
+      return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert("Error", "Password baru tidak cocok dengan konfirmasi password")
-      return
+      Alert.alert("Error", "Password baru tidak cocok dengan konfirmasi password");
+      return;
     }
 
     if (newPassword.length < 8) {
-      Alert.alert("Error", "Password baru harus minimal 8 karakter")
-      return
+      Alert.alert("Error", "Password baru harus minimal 8 karakter");
+      return;
     }
 
-    setLoading(true)
+    console.log("Available routes before navigation:", navigation.getState().routes);
+
+    setLoading(true);
     try {
-      // Get the token from AsyncStorage if not available in state
-      const userToken = token || (await AsyncStorage.getItem("userToken"))
+      await dispatch(changePassword({ current_password: currentPassword, new_password: newPassword })).unwrap();
 
-      if (!userToken) {
-        throw new Error("Token tidak ditemukan. Silahkan login kembali.")
-      }
+      // Set passwordChanged flag to true
+      await dispatch(markPasswordChangeCompleted());
 
-      // Call the change password API through Redux
-      const result = await dispatch(
-        changePassword({
-          current_password: currentPassword,
-          new_password: newPassword,
-        }),
-      ).unwrap()
-
-      // If a new token is returned, update it in AsyncStorage
-      if (result.token) {
-        await AsyncStorage.setItem("userToken", result.token)
-        console.log("Password changed successfully, new token saved")
-      }
-
-      // Mark password change as completed
-      await dispatch(markPasswordChangeCompleted())
-
+      console.log(navigation.getState().routes);
+      // Navigate based on the flow
       if (isForcedPasswordChange) {
-        // If this was a forced password change, show success message and continue to app
-        Alert.alert("Sukses", "Password berhasil diubah. Anda akan diarahkan ke langkah selanjutnya.", [
-          {
-            text: "OK",
-            onPress: () => {
-              // The RootNavigator will handle navigation to onboarding
-            },
-          },
-        ])
+        navigation.replace("Onboarding"); // Replace current screen with Onboarding
       } else {
-        // If this was a regular password change, navigate to login
-        Alert.alert("Sukses", "Password berhasil diubah. Silahkan login dengan password baru Anda.", [
-          {
-            text: "OK",
-            onPress: () => {
-              navigation.navigate("Login")
-            },
-          },
-        ])
+        navigation.replace("Onboarding"); // Replace current screen with Main
       }
     } catch (error) {
-      console.error("Change password error:", error)
-      Alert.alert("Gagal", error instanceof Error ? error.message : "Gagal mengubah password. Silahkan coba lagi.")
+      console.error("Change password error:", error);
+      Alert.alert("Gagal", error instanceof Error ? error.message : "Gagal mengubah password. Silahkan coba lagi.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleBackPress = () => {
     if (isForcedPasswordChange) {
-      // If this is a forced password change, show warning
+      // Show alert for forced password change
       Alert.alert(
         "Perhatian",
         "Anda harus mengubah password sebelum melanjutkan. Apakah Anda ingin keluar dari aplikasi?",
@@ -135,16 +103,18 @@ export default function ChangePasswordScreen({ navigation, route }: ChangePasswo
           {
             text: "Keluar",
             onPress: () => {
-              dispatch(logout())
+              dispatch(logout());
+              navigation.replace("Login"); // Navigate to Login after logout
             },
           },
         ],
-      )
+      );
+    } else if (navigation.canGoBack()) {
+      navigation.goBack(); // Go back if possible
     } else {
-      // Otherwise, just go back
-      navigation.goBack()
+      navigation.replace("Main"); // Fallback navigation
     }
-  }
+  };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-gray-50">
@@ -243,6 +213,5 @@ export default function ChangePasswordScreen({ navigation, route }: ChangePasswo
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
-  )
+  );
 }
-

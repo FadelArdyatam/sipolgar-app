@@ -32,6 +32,7 @@ import {
 } from "../../utils/fitnessCalculation"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { CommonActions } from "@react-navigation/native"
+import { PersonelUpdate, UserProfile } from "~/app/types/user"
 
 const { width } = Dimensions.get("window")
 
@@ -163,45 +164,45 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
   // Update the save profile handler to also update the local state
   const handleSaveProfile = async () => {
     if (!height || !weight || !fitnessGoal || !activityLevel) {
-      Alert.alert("Error", "Harap isi semua data")
-      return
+      Alert.alert("Error", "Harap isi semua data");
+      return;
     }
   
-    setLoading(true)
+    setLoading(true);
     try {
-      const heightNum = Number.parseFloat(height)
-      const weightNum = Number.parseFloat(weight)
+      const heightNum = Number.parseFloat(height);
+      const weightNum = Number.parseFloat(weight);
   
-      const updateData = {
+      const updateData: { personel?: PersonelUpdate } & Partial<UserProfile> = {
         personel: {
           tinggi_badan: heightNum,
           berat_badan: weightNum,
           fitness_goal: fitnessGoal,
           activity_level: activityLevel,
         },
-      }
+      };
   
-      await dispatch(updateUserProfile(updateData)).unwrap()
-      dispatch(updateUserProfileLocal(updateData))
+      await dispatch(updateUserProfile(updateData)).unwrap();
+      dispatch(updateUserProfileLocal(updateData));
   
-      await AsyncStorage.setItem("onboardingCompleted", "true")
+      await AsyncStorage.setItem("onboardingCompleted", "true");
   
       Alert.alert("Sukses", "Profil berhasil disimpan", [
         {
           text: "OK",
           onPress: () => {
-            // Gunakan navigation.replace untuk mengganti layar saat ini dengan Main
-            navigation.replace("Main")
+            navigation.replace("Main"); // Arahkan ke Main setelah onboarding selesai
           },
         },
-      ])
+      ]);
     } catch (error) {
-      console.error("Save profile error:", error)
-      Alert.alert("Gagal", "Gagal menyimpan profil. Silahkan coba lagi.")
+      console.error("Save profile error:", error);
+      Alert.alert("Gagal", "Gagal menyimpan profil. Silahkan coba lagi.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+  
 
   const handleBackToLogin = () => {
     Alert.alert(

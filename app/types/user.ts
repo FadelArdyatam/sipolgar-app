@@ -29,11 +29,12 @@ export interface Personel {
   id_user: number
   created_at: string
   updated_at: string
+  passwordChanged: boolean
 }
 
 // Create a partial version of Personel for updates
 export interface PersonelUpdate {
-  personel: Personel | undefined
+  personel?: Personel | undefined
   name?: string
   email?: string
   no_hp?: string

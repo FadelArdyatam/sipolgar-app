@@ -3,7 +3,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as authService from "../../services/AuthServices";
 import type { UserProfile, AuthState, PersonelUpdate } from "../../types/user";
 
-// Update the initial state
 const initialState: AuthState = {
   user: null,
   token: null,
@@ -15,10 +14,10 @@ const initialState: AuthState = {
   expiresAt: null,
   requiresPasswordChange: false,
   isFirstLogin: false,
-  needsOnboarding: true, // Add this property
+  needsOnboarding: true,
 };
 
-// Add a new action to mark password change as completed
+// Mark password change as completed
 export const markPasswordChangeCompleted = createAsyncThunk(
   "auth/markPasswordChangeCompleted",
   async (_, { dispatch }) => {
@@ -27,19 +26,19 @@ export const markPasswordChangeCompleted = createAsyncThunk(
   }
 );
 
-// Add a new action to check if this is the first login
+// Check if it's the first login
 export const checkFirstLogin = createAsyncThunk("auth/checkFirstLogin", async (_, { dispatch }) => {
   const isFirstLogin = await AsyncStorage.getItem("isFirstLogin");
   return isFirstLogin !== "false";
 });
 
+// Login user
 export const login = createAsyncThunk(
   "auth/login",
   async ({ username, password }: { username: string; password: string }, { rejectWithValue }) => {
     try {
       const response = await authService.login(username, password);
 
-      // Store authentication data in AsyncStorage
       await AsyncStorage.setItem("userToken", response.token);
       await AsyncStorage.setItem("userData", JSON.stringify(response.user));
       if (response.expiresAt) {
@@ -53,6 +52,7 @@ export const login = createAsyncThunk(
   }
 );
 
+// Register user
 export const register = createAsyncThunk(
   "auth/register",
   async (
@@ -70,7 +70,6 @@ export const register = createAsyncThunk(
   ) => {
     try {
       const response = await authService.register(userData);
-
       return {
         message: response.message,
         email: userData.email,
@@ -83,6 +82,7 @@ export const register = createAsyncThunk(
   }
 );
 
+// Verify OTP
 export const verifyOTP = createAsyncThunk(
   "auth/verifyOTP",
   async ({ email, otp }: { email: string; otp: string }, { rejectWithValue }) => {
@@ -98,6 +98,7 @@ export const verifyOTP = createAsyncThunk(
   }
 );
 
+// Check verification status
 export const checkVerification = createAsyncThunk(
   "auth/checkVerification",
   async (email: string, { rejectWithValue }) => {
@@ -114,6 +115,7 @@ export const checkVerification = createAsyncThunk(
   }
 );
 
+// Regenerate OTP
 export const regenerateOTP = createAsyncThunk("auth/regenerateOTP", async (email: string, { rejectWithValue }) => {
   try {
     const response = await authService.regenerateOTP(email);
@@ -126,6 +128,7 @@ export const regenerateOTP = createAsyncThunk("auth/regenerateOTP", async (email
   }
 });
 
+// Forgot password
 export const forgotPassword = createAsyncThunk("auth/forgotPassword", async (email: string, { rejectWithValue }) => {
   try {
     const response = await authService.forgotPassword(email);
@@ -135,6 +138,7 @@ export const forgotPassword = createAsyncThunk("auth/forgotPassword", async (ema
   }
 });
 
+// Change password
 export const changePassword = createAsyncThunk(
   "auth/changePassword",
   async (
@@ -150,6 +154,7 @@ export const changePassword = createAsyncThunk(
   }
 );
 
+// Get user profile
 export const getUserProfile = createAsyncThunk("auth/getUserProfile", async (_, { rejectWithValue }) => {
   try {
     const response = await authService.getUserProfile();
@@ -159,40 +164,32 @@ export const getUserProfile = createAsyncThunk("auth/getUserProfile", async (_, 
   }
 });
 
+// Update user profile
 export const updateUserProfile = createAsyncThunk(
   "auth/updateUserProfile",
   async (profileData: { personel?: PersonelUpdate } & Partial<UserProfile>, { rejectWithValue, getState }) => {
     try {
-      console.log("Updating profile with data:", JSON.stringify(profileData, null, 2));
       const response = await authService.updateUserProfile(profileData);
 
-      // Get the current state
       const state = getState() as { auth: AuthState };
       const currentUser = state.auth.user;
 
-      // Create a merged user object that includes both the response data and the update data
       const updatedUser = { ...response.user };
 
-      // If we have personel data in the update but not in the response, manually add it
       if (profileData.personel && updatedUser.personel) {
         updatedUser.personel = {
           ...updatedUser.personel,
           ...profileData.personel,
         };
       } else if (profileData.personel && currentUser?.personel && !updatedUser.personel) {
-        // If the response doesn't include personel data but we have it in the current state
         updatedUser.personel = {
           ...currentUser.personel,
           ...profileData.personel,
         };
       }
 
-      console.log("Merged user data:", JSON.stringify(updatedUser, null, 2));
-
-      // Update the user data in AsyncStorage
       await AsyncStorage.setItem("userData", JSON.stringify(updatedUser));
 
-      // Mark onboarding as completed if fitness data is provided
       if (profileData.personel?.tinggi_badan && profileData.personel?.berat_badan) {
         await AsyncStorage.setItem("onboardingCompleted", "true");
       }
@@ -207,6 +204,7 @@ export const updateUserProfile = createAsyncThunk(
   }
 );
 
+// Logout user
 export const logout = createAsyncThunk("auth/logout", async () => {
   await authService.logout();
 });
@@ -223,14 +221,16 @@ const authSlice = createSlice({
         state.expiresAt = action.payload.expiresAt;
       }
 
-      // Check if onboarding is needed
+      // Set requiresPasswordChange based on passwordChanged flag
+      state.requiresPasswordChange = !action.payload.user.personel?.passwordChanged;
+
+      // Set needsOnboarding based on tinggi_badan and berat_badan
       const needsOnboarding =
-        !state.user?.personel?.tinggi_badan || !state.user?.personel?.berat_badan;
+        !action.payload.user.personel?.tinggi_badan || !action.payload.user.personel?.berat_badan;
       state.needsOnboarding = needsOnboarding;
     },
     updateUserProfileLocal: (state, action: PayloadAction<{ personel?: PersonelUpdate } & Partial<UserProfile>>) => {
       if (state.user) {
-        // Handle nested personel object if it exists in the payload
         if (action.payload.personel && state.user.personel) {
           state.user = {
             ...state.user,
@@ -241,12 +241,9 @@ const authSlice = createSlice({
             },
           };
 
-          // Update needsOnboarding if fitness data is provided
           if (action.payload.personel.tinggi_badan && action.payload.personel.berat_badan) {
             state.needsOnboarding = false;
           }
-
-          console.log("Updated user data locally:", JSON.stringify(state.user, null, 2));
         } else {
           state.user = {
             ...state.user,
@@ -254,12 +251,10 @@ const authSlice = createSlice({
           };
         }
 
-        // Update user data in AsyncStorage
         AsyncStorage.setItem("userData", JSON.stringify(state.user)).catch((error) =>
           console.error("Failed to update user data in AsyncStorage:", error)
         );
 
-        // Mark onboarding as completed if fitness data is provided
         if (action.payload.personel?.tinggi_badan && action.payload.personel?.berat_badan) {
           AsyncStorage.setItem("onboardingCompleted", "true").catch((error) =>
             console.error("Failed to update onboarding status in AsyncStorage:", error)
@@ -278,10 +273,15 @@ const authSlice = createSlice({
       state.verificationEmail = action.payload;
       state.requiresEmailVerification = true;
     },
+    setRequiresPasswordChange: (state, action: PayloadAction<boolean>) => {
+      state.requiresPasswordChange = action.payload;
+    },
+    setNeedsOnboarding: (state, action: PayloadAction<boolean>) => {
+      state.needsOnboarding = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
-      // Login
       .addCase(login.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -293,27 +293,18 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.expiresAt = action.payload.expiresAt;
 
-        // Check if this is the first login (password needs to be changed)
-        const passwordChanged = AsyncStorage.getItem("passwordChanged");
-        if (!passwordChanged) {
-          state.requiresPasswordChange = true;
-          state.isFirstLogin = true;
-          AsyncStorage.setItem("isFirstLogin", "true");
-        } else {
-          state.requiresPasswordChange = false;
-          state.isFirstLogin = false;
-        }
+        // Set requiresPasswordChange based on passwordChanged flag
+        state.requiresPasswordChange = !action.payload.user.personel?.passwordChanged;
 
-        // Check if onboarding is needed
-        state.needsOnboarding =
-          !state.user?.personel?.tinggi_badan || !state.user?.personel?.berat_badan;
+        // Set needsOnboarding based on tinggi_badan and berat_badan
+        const needsOnboarding =
+          !action.payload.user.personel?.tinggi_badan || !action.payload.user.personel?.berat_badan;
+        state.needsOnboarding = needsOnboarding;
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
         state.error = (action.payload as string) || "Login failed";
       })
-
-      // Register
       .addCase(register.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -327,8 +318,6 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = (action.payload as string) || "Registration failed";
       })
-
-      // Verify OTP
       .addCase(verifyOTP.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -341,8 +330,6 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = (action.payload as string) || "OTP verification failed";
       })
-
-      // Check Verification
       .addCase(checkVerification.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -360,8 +347,6 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = (action.payload as string) || "Failed to check verification status";
       })
-
-      // Forgot Password
       .addCase(forgotPassword.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -373,8 +358,6 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = (action.payload as string) || "Failed to send reset email";
       })
-
-      // Regenerate OTP
       .addCase(regenerateOTP.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -386,8 +369,6 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = (action.payload as string) || "Failed to regenerate OTP";
       })
-
-      // Change Password
       .addCase(changePassword.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -395,17 +376,21 @@ const authSlice = createSlice({
       .addCase(changePassword.fulfilled, (state, action) => {
         state.loading = false;
         state.requiresPasswordChange = false;
+
+        // Update token jika ada token baru
         if (action.payload.token) {
           state.token = action.payload.token;
         }
-        AsyncStorage.setItem("passwordChanged", "true");
+
+        // Update status passwordChanged di state
+        if (state.user?.personel) {
+          state.user.personel.passwordChanged = true;
+        }
       })
       .addCase(changePassword.rejected, (state, action) => {
         state.loading = false;
         state.error = (action.payload as string) || "Failed to change password";
       })
-
-      // Get User Profile
       .addCase(getUserProfile.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -418,8 +403,6 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = (action.payload as string) || "Failed to get user profile";
       })
-
-      // Update User Profile
       .addCase(updateUserProfile.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -436,20 +419,15 @@ const authSlice = createSlice({
             },
           };
 
-          // Update needsOnboarding if fitness data is provided
           if (action.payload.user.personel?.tinggi_badan && action.payload.user.personel?.berat_badan) {
             state.needsOnboarding = false;
           }
-
-          console.log("Updated user in state:", JSON.stringify(state.user, null, 2));
         }
       })
       .addCase(updateUserProfile.rejected, (state, action) => {
         state.loading = false;
         state.error = (action.payload as string) || "Failed to update profile";
       })
-
-      // Logout
       .addCase(logout.fulfilled, (state) => {
         state.isAuthenticated = false;
         state.token = null;
@@ -459,22 +437,25 @@ const authSlice = createSlice({
         state.expiresAt = null;
         state.requiresPasswordChange = false;
         state.isFirstLogin = false;
-        state.needsOnboarding = true; // Reset onboarding state
+        state.needsOnboarding = true;
       })
-
-      // Mark Password Change Completed
       .addCase(markPasswordChangeCompleted.fulfilled, (state) => {
         state.requiresPasswordChange = false;
       })
-
-      // Check First Login
       .addCase(checkFirstLogin.fulfilled, (state, action) => {
         state.isFirstLogin = action.payload;
       });
   },
 });
 
-export const { restoreUser, updateUserProfileLocal, clearError, clearEmailVerification, setVerificationEmail } =
-  authSlice.actions;
+export const {
+  restoreUser,
+  updateUserProfileLocal,
+  clearError,
+  clearEmailVerification,
+  setVerificationEmail,
+  setRequiresPasswordChange,
+  setNeedsOnboarding,
+} = authSlice.actions;
 
 export default authSlice.reducer;
