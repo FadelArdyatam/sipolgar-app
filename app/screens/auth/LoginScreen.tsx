@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,12 +13,14 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useDispatch } from "react-redux";
-import { login } from "../../store/auth/authSlice";
+import { login, setNeedsOnboarding } from "../../store/auth/authSlice";
 import { Eye, EyeOff, User, Lock } from "lucide-react-native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../types/navigation";
 import type { AppDispatch } from "../../store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { CommonActions } from "@react-navigation/native";
+import { getUserProfile } from "~/app/services/AuthServices";
 
 type LoginScreenProps = {
   navigation: NativeStackNavigationProp<AuthStackParamList, "Login">;
@@ -33,36 +35,63 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
   const handleLogin = async () => {
     if (!username || !password) {
-      Alert.alert("Error", "Please fill in all fields");
+      Alert.alert("Error", "Harap isi semua field");
       return;
-    }
-
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      // Tidak ada layar sebelumnya yang dapat dikembalikan
     }
     
     setLoading(true);
     try {
       const result = await dispatch(login({ username, password })).unwrap();
       
-      // Tambahkan log untuk debug
-      console.log("User data after login:", JSON.stringify(result.user.personel, null, 2));
-      console.log("Onboarding status:", !result.user.personel?.tinggi_badan || !result.user.personel?.berat_badan);
+      // Log untuk debug
+      console.log("User data after login:", result.user.personel);
       
-      // Periksa juga flag onboardingCompleted dari AsyncStorage
+      // Periksa onboardingCompleted dari AsyncStorage
       const onboardingCompleted = await AsyncStorage.getItem("onboardingCompleted");
       console.log("Onboarding completed flag:", onboardingCompleted);
       
-      // Gunakan kedua sumber data untuk menentukan status onboarding
-      if ((!result.user.personel?.tinggi_badan || !result.user.personel?.berat_badan) && onboardingCompleted !== "true") {
+      // Periksa apakah user perlu onboarding
+      const needsOnboarding = (!result.user.personel?.tinggi_badan || !result.user.personel?.berat_badan) && 
+                             onboardingCompleted !== "true";
+      
+      console.log("Onboarding status:", needsOnboarding);
+      console.log(getUserProfile);
+      
+      if (onboardingCompleted === "true") {
+        console.log("Onboarding completed flag exists, going to Main");
+        // Jika flag ada, langsung ke Main
+        navigation.navigate("Main");
+      } else {
+        console.log("Onboarding not completed, redirecting to Onboarding");
+        // Jika flag tidak ada, arahkan ke Onboarding
+        navigation.navigate("Onboarding");
+      }
+
+      if (needsOnboarding) {
+        console.log("User needs onboarding, redirecting to Onboarding");
+        // Reset flag onboarding di AsyncStorage
+        await AsyncStorage.removeItem("onboardingCompleted");
+        dispatch(setNeedsOnboarding(true));
+        
+        // Navigasi ke Onboarding
         navigation.navigate("Onboarding");
       } else {
-        // Jika salah satu menunjukkan onboarding selesai, anggap selesai
-        navigation.navigate("Main");
+        console.log("User does not need onboarding, redirecting to Main");
+        // Pastikan flag disimpan jika belum ada
+        if (result.user.personel?.tinggi_badan && result.user.personel?.berat_badan) {
+          await AsyncStorage.setItem("onboardingCompleted", "true");
+          dispatch(setNeedsOnboarding(false));
+        }
+        
+        // Reset navigasi ke Main untuk mencegah kembali ke login
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'Main' }],
+          })
+        );
       }
-    }catch (error) {
+    } catch (error) {
       console.error("Login error:", error);
       Alert.alert(
         "Login Failed",

@@ -19,10 +19,8 @@ export interface Personel {
   jenis_kelamin: string
   jenis_pekerjaan: string | null
   intensitas: string | null
-  tinggi_badan: number | null
-  berat_badan: number | null
-  fitness_goal: string | null
-  activity_level: string | null
+  tinggi_badan?: number | null
+  berat_badan?: number | null
   theme_preference?: string | null // Add theme preference
   id_satuankerja: number
   id_pangkat: number | null
@@ -30,6 +28,7 @@ export interface Personel {
   created_at: string
   updated_at: string
   passwordChanged: boolean
+
 }
 
 // Create a partial version of Personel for updates
@@ -44,12 +43,19 @@ export interface PersonelUpdate {
   jenis_pekerjaan?: string | null
   intensitas?: number | null
   tinggi_badan?: number | null
-  berat_badan?: number | null
-  fitness_goal?: string | null
-  activity_level?: string | null
   theme_preference?: string | null // Add theme preference
   id_satuankerja?: number
   id_pangkat?: number | null
+}
+
+export interface berat_badan{
+  id: number
+  tgl_berat_badan: string
+  berat_badan: number
+  minggu_ke: number
+  id_personel?: number
+  created_at: string
+  updated_at: string
 }
 
 export interface UserProfile extends User {

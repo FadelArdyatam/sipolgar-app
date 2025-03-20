@@ -191,6 +191,7 @@ export const updateUserProfile = createAsyncThunk(
 
       if (profileData.personel?.tinggi_badan && profileData.personel?.berat_badan) {
         await AsyncStorage.setItem("onboardingCompleted", "true");
+        console.log("Onboarding flag set to true in updateUserProfile");
       }
 
       return {
@@ -212,20 +213,28 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    // Ubah restoreUser action
-restoreUser: (state, action: PayloadAction<{ token: string; user: UserProfile; expiresAt?: string }>) => {
-  state.token = action.payload.token;
-  state.user = action.payload.user;
-  state.isAuthenticated = true;
-  if (action.payload.expiresAt) {
-    state.expiresAt = action.payload.expiresAt;
-  }
+    restoreUser: (state, action: PayloadAction<{ token: string; user: UserProfile; expiresAt?: string }>) => {
+      state.token = action.payload.token;
+      state.user = action.payload.user;
+      state.isAuthenticated = true;
+      if (action.payload.expiresAt) {
+        state.expiresAt = action.payload.expiresAt;
+      }
 
-  // Set needsOnboarding based on tinggi_badan and berat_badan
-  const needsOnboarding =
-    !action.payload.user.personel?.tinggi_badan || !action.payload.user.personel?.berat_badan;
-  state.needsOnboarding = needsOnboarding;
-},
+      // Set needsOnboarding berdasarkan data pengguna
+      const needsOnboarding =
+        !action.payload.user.personel?.tinggi_badan || !action.payload.user.personel?.berat_badan;
+      
+      // Jika data tinggi dan berat ada, sekaligus simpan di AsyncStorage
+      if (!needsOnboarding) {
+        AsyncStorage.setItem("onboardingCompleted", "true").catch(err => 
+          console.error("Failed to update onboarding status in AsyncStorage:", err)
+        );
+        console.log("Onboarding flag set to true in restoreUser");
+      }
+      
+      state.needsOnboarding = needsOnboarding;
+    },
     updateUserProfileLocal: (state, action: PayloadAction<{ personel?: PersonelUpdate } & Partial<UserProfile>>) => {
       if (state.user) {
         if (action.payload.personel && state.user.personel) {
@@ -240,6 +249,10 @@ restoreUser: (state, action: PayloadAction<{ token: string; user: UserProfile; e
 
           if (action.payload.personel.tinggi_badan && action.payload.personel.berat_badan) {
             state.needsOnboarding = false;
+            AsyncStorage.setItem("onboardingCompleted", "true").catch(err => 
+              console.error("Failed to set onboarding flag in updateUserProfileLocal:", err)
+            );
+            console.log("Onboarding flag set to true in updateUserProfileLocal");
           }
         } else {
           state.user = {
@@ -251,12 +264,6 @@ restoreUser: (state, action: PayloadAction<{ token: string; user: UserProfile; e
         AsyncStorage.setItem("userData", JSON.stringify(state.user)).catch((error) =>
           console.error("Failed to update user data in AsyncStorage:", error)
         );
-
-        if (action.payload.personel?.tinggi_badan && action.payload.personel?.berat_badan) {
-          AsyncStorage.setItem("onboardingCompleted", "true").catch((error) =>
-            console.error("Failed to update onboarding status in AsyncStorage:", error)
-          );
-        }
       }
     },
     clearError: (state) => {
@@ -275,6 +282,19 @@ restoreUser: (state, action: PayloadAction<{ token: string; user: UserProfile; e
     },
     setNeedsOnboarding: (state, action: PayloadAction<boolean>) => {
       state.needsOnboarding = action.payload;
+      
+      // Sinkronkan dengan AsyncStorage
+      if (action.payload === false) {
+        AsyncStorage.setItem("onboardingCompleted", "true").catch(err => 
+          console.error("Failed to set onboarding flag in setNeedsOnboarding:", err)
+        );
+        console.log("Onboarding flag set to true in setNeedsOnboarding");
+      } else {
+        AsyncStorage.removeItem("onboardingCompleted").catch(err => 
+          console.error("Failed to remove onboarding flag in setNeedsOnboarding:", err)
+        );
+        console.log("Onboarding flag removed in setNeedsOnboarding");
+      }
     },
   },
   extraReducers: (builder) => {
@@ -290,12 +310,26 @@ restoreUser: (state, action: PayloadAction<{ token: string; user: UserProfile; e
         state.user = action.payload.user;
         state.expiresAt = action.payload.expiresAt;
       
-        // Set needsOnboarding based on tinggi_badan and berat_badan
+        // Set needsOnboarding berdasarkan data
         const needsOnboarding =
           !action.payload.user.personel?.tinggi_badan || !action.payload.user.personel?.berat_badan;
+        
+        // Jika user sudah memiliki data, langsung update onboardingCompleted
+        if (!needsOnboarding) {
+          AsyncStorage.setItem("onboardingCompleted", "true").catch(err => 
+            console.error("Failed to set onboarding flag on login:", err)
+          );
+          console.log("Onboarding flag set to true in login.fulfilled");
+        } else {
+          // Pastikan flag dihapus jika perlu onboarding
+          AsyncStorage.removeItem("onboardingCompleted").catch(err => 
+            console.error("Failed to remove onboarding flag on login:", err)
+          );
+          console.log("Onboarding flag removed in login.fulfilled");
+        }
+        
         state.needsOnboarding = needsOnboarding;
       })
-      
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
         state.error = (action.payload as string) || "Login failed";
@@ -388,8 +422,6 @@ restoreUser: (state, action: PayloadAction<{ token: string; user: UserProfile; e
             );
           }
         } else {
-          // Jika personel tidak ada, kita tidak bisa membuat personel baru yang tidak lengkap
-          // Sebaiknya catat peringatan bahwa personel tidak ada
           console.warn("User doesn't have personel data to update passwordChanged flag");
           
           // Alternatif: jika API menyediakan data personel dalam respons, gunakan itu
@@ -416,6 +448,19 @@ restoreUser: (state, action: PayloadAction<{ token: string; user: UserProfile; e
       .addCase(getUserProfile.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload;
+        
+        // Periksa juga status onboarding berdasarkan data
+        const needsOnboarding =
+          !action.payload.tinggi_badan || !action.payload.berat_badan;
+        
+        if (!needsOnboarding) {
+          AsyncStorage.setItem("onboardingCompleted", "true").catch(err => 
+            console.error("Failed to set onboarding flag in getUserProfile:", err)
+          );
+          console.log("Onboarding flag set to true in getUserProfile");
+        }
+        
+        state.needsOnboarding = needsOnboarding;
       })
       .addCase(getUserProfile.rejected, (state, action) => {
         state.loading = false;
@@ -437,8 +482,16 @@ restoreUser: (state, action: PayloadAction<{ token: string; user: UserProfile; e
             },
           };
 
-          if (action.payload.user.personel?.tinggi_badan && action.payload.user.personel?.berat_badan) {
+          // Jika pengguna memiliki data tinggi dan berat, tandai onboarding selesai
+          if (
+            (action.payload.user.personel?.tinggi_badan || state.user?.personel?.tinggi_badan) && 
+            (action.payload.user.personel?.berat_badan || state.user?.personel?.berat_badan)
+          ) {
             state.needsOnboarding = false;
+            // Pastikan flag disimpan di AsyncStorage
+            AsyncStorage.setItem("onboardingCompleted", "true")
+              .then(() => console.log("Onboarding flag set to true in updateUserProfile.fulfilled"))
+              .catch(err => console.error("Failed to set onboarding flag:", err));
           }
         }
       })

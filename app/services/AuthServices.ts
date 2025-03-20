@@ -211,7 +211,6 @@ export const getUserProfile = async (): Promise<UserProfile> => {
   }
 };
 
-// Update user profile
 export const updateUserProfile = async (profileData: { personel?: PersonelUpdate } & Partial<UserProfile>): Promise<UpdateProfileResponse> => {
   try {
     console.log("Updating user profile with data:", JSON.stringify(profileData, null, 2));
@@ -220,37 +219,48 @@ export const updateUserProfile = async (profileData: { personel?: PersonelUpdate
     const userData = await AsyncStorage.getItem("userData");
     const currentUser = userData ? JSON.parse(userData) : null;
 
-    const response = await api.post<UpdateProfileResponse>("/users/update", profileData);
+    // Perbaikan: Format data sesuai dengan yang diharapkan API
+    let apiPayload;
+    if (profileData.personel) {
+      // Jika ada data personel, kirim data personel langsung (bukan sebagai sub-objek)
+      apiPayload = {
+        ...profileData.personel
+      };
+    } else {
+      // Jika tidak ada data personel, kirim data user saja
+      apiPayload = { ...profileData };
+    }
+
+    console.log("API payload formatted:", JSON.stringify(apiPayload, null, 2));
+    const response = await api.post<UpdateProfileResponse>("/users/update", apiPayload);
 
     console.log("Update profile response:", JSON.stringify(response.data, null, 2));
 
-    // If the API doesn't return the updated fields, manually add them to the response
-    if (response.data.user && response.data.user.personel && profileData.personel) {
-      // Merge the current personel data with the response and the update data
-      if (currentUser && currentUser.personel) {
+    // Perbarui data respons dengan data yang baru diupdate
+    if (response.data.user) {
+      // Jika ada personel data yang kita kirim, tapi tidak dikembalikan dalam respons
+      if (profileData.personel && response.data.user) {
+        if (!response.data.user.personel) {
+          response.data.user.personel = {
+            ...profileData.personel
+          };
+        }
+        
+        // Pastikan data yang dikirim tercermin dalam respons
         response.data.user.personel = {
-          ...currentUser.personel,
           ...response.data.user.personel,
-          ...profileData.personel,
-        };
-      } else {
-        response.data.user.personel = {
-          ...response.data.user.personel,
-          ...profileData.personel,
+          ...profileData.personel
         };
       }
 
-      console.log("Modified response with updated fields:", JSON.stringify(response.data, null, 2));
-    }
-
-    // Update stored user data if available
-    if (response.data.user) {
+      // Update stored user data
       await AsyncStorage.setItem("userData", JSON.stringify(response.data.user));
-    }
-
-    // If fitness data is provided, mark onboarding as completed
-    if (profileData.personel?.tinggi_badan && profileData.personel?.berat_badan) {
-      await AsyncStorage.setItem("onboardingCompleted", "true");
+      
+      // Jika fitness data disediakan, tandai onboarding sebagai selesai
+      if (profileData.personel?.tinggi_badan && profileData.personel?.berat_badan) {
+        await AsyncStorage.setItem("onboardingCompleted", "true");
+        console.log("Onboarding flag set to true in updateUserProfile API call");
+      }
     }
 
     return response.data;
@@ -260,24 +270,50 @@ export const updateUserProfile = async (profileData: { personel?: PersonelUpdate
   }
 };
 
-// Get all satuan kerja - with retry mechanism
-export const getAllSatuanKerja = async (retryCount = 0): Promise<SatuanKerja[]> => {
+// Update fitness data (dedicated function for updating height, weight, goals)
+export const updateFitnessData = async (
+  fitnessData: {
+    tinggi_badan: number;
+    berat_badan: number;
+    fitness_goal: string;
+    activity_level: string;
+  }
+): Promise<UpdateProfileResponse> => {
   try {
-    console.log("Fetching all satuan kerja");
-    const response = await api.get("/satuan-kerja");
-    console.log("All satuan kerja response:", response.data);
-    return response.data.data || [];
-  } catch (error) {
-    console.error("Failed to fetch all satuan kerja:", error);
-
-    // Add retry logic (max 2 retries)
-    if (retryCount < 2) {
-      console.log(`Retrying getAllSatuanKerja (attempt ${retryCount + 1})`);
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second before retry
-      return getAllSatuanKerja(retryCount + 1);
+    console.log("Updating fitness data:", JSON.stringify(fitnessData, null, 2));
+    
+    // Kirim langsung ke API tanpa nesting dalam personel
+    const response = await api.post<UpdateProfileResponse>("/users/update", fitnessData);
+    
+    console.log("Update fitness response:", JSON.stringify(response.data, null, 2));
+    
+    // Perbarui data user di AsyncStorage
+    const userData = await AsyncStorage.getItem("userData");
+    if (userData && response.data.user) {
+      const currentUser = JSON.parse(userData);
+      
+      // Perbarui data personel
+      if (!currentUser.personel) {
+        currentUser.personel = {};
+      }
+      
+      currentUser.personel = {
+        ...currentUser.personel,
+        ...fitnessData
+      };
+      
+      // Simpan kembali ke AsyncStorage
+      await AsyncStorage.setItem("userData", JSON.stringify(currentUser));
+      
+      // Tandai onboarding selesai
+      await AsyncStorage.setItem("onboardingCompleted", "true");
+      console.log("Onboarding completed flag set in updateFitnessData");
     }
-
-    return [];
+    
+    return response.data;
+  } catch (error) {
+    console.error("Update fitness data error:", error);
+    throw error;
   }
 };
 

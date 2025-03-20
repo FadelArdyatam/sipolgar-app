@@ -25,13 +25,20 @@ export const getWeightData = async (): Promise<WeightData[]> => {
 };
 
 // Simpan data berat badan baru
+// services/WeightTrackingService.ts
 export const saveWeightData = async (data: {
   berat_badan: number;
   minggu_ke: number;
   tgl_berat_badan: string;
 }): Promise<WeightData> => {
   try {
-    const response = await api.post('/berat-badan', data);
+    // Pastikan minggu_ke minimal 1
+    const dataToSend = {
+      ...data,
+      minggu_ke: Math.max(1, data.minggu_ke) // Pastikan minimal 1
+    };
+    
+    const response = await api.post('/berat-badan', dataToSend);
     return response.data.data;
   } catch (error) {
     console.error('Failed to save weight data:', error);

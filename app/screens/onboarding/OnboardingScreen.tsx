@@ -32,10 +32,8 @@ import {
 } from "../../utils/fitnessCalculation"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { CommonActions } from "@react-navigation/native"
-import { PersonelUpdate, UserProfile } from "~/app/types/user"
-import { saveWeightData } from "../../services/WeightTrackingService";
-
-
+import { PersonelUpdate, UserProfile } from "../../types/user"
+import { saveWeightData } from "../../services/WeightTrackingService"
 
 const { width } = Dimensions.get("window")
 
@@ -91,6 +89,22 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
       }),
     ]).start()
   }, [currentStep])
+
+  // Pre-fill values if user already has data
+  useEffect(() => {
+    if (user?.personel?.tinggi_badan) {
+      setHeight(user.personel.tinggi_badan.toString());
+    }
+    if (user?.personel?.berat_badan) {
+      setWeight(user.personel.berat_badan.toString());
+    }
+    if (user?.personel?.fitness_goal) {
+      setFitnessGoal(user.personel.fitness_goal);
+    }
+    if (user?.personel?.activity_level) {
+      setActivityLevel(user.personel.activity_level);
+    }
+  }, [user]);
 
   const fitnessGoals = [
     {
@@ -164,19 +178,19 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
     calculateFitnessMetrics()
   }, [height, weight, activityLevel, fitnessGoal])
 
-  // Update the save profile handler to also update the local state
+  // Handler to save profile and track weight
   const handleSaveProfile = async () => {
     if (!height || !weight || !fitnessGoal || !activityLevel) {
       Alert.alert("Error", "Harap isi semua data");
       return;
     }
-  
+
     setLoading(true);
     try {
       const heightNum = Number.parseFloat(height);
       const weightNum = Number.parseFloat(weight);
-  
-      // Update tipe data sesuai dengan yang diharapkan
+
+      // Tipe data yang benar untuk updateUserProfile
       const updateData: { personel?: PersonelUpdate } & Partial<UserProfile> = {
         personel: {
           tinggi_badan: heightNum,
@@ -185,27 +199,39 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
           activity_level: activityLevel,
         },
       };
-  
+
+      // Update profil pengguna
       await dispatch(updateUserProfile(updateData)).unwrap();
       dispatch(updateUserProfileLocal(updateData));
-  
-      // Simpan data berat badan ke API
-      const today = new Date();
-      const formattedDate = today.toISOString().split('T')[0]; // Format YYYY-MM-DD
       
-      await saveWeightData({
-        berat_badan: weightNum,
-        minggu_ke: 0, // Minggu awal
-        tgl_berat_badan: formattedDate,
-      });
-  
+      // Simpan data berat badan ke API tracking
+      try {
+        const today = new Date();
+        const formattedDate = today.toISOString().split('T')[0]; // Format YYYY-MM-DD
+        
+        await saveWeightData({
+          berat_badan: weightNum,
+          minggu_ke: 1, // Minimal 1 karena validasi API
+          tgl_berat_badan: formattedDate,
+        });
+        console.log("Data berat badan berhasil disimpan ke tracking");
+      } catch (weightError) {
+        console.error("Gagal menyimpan data berat badan ke tracking:", weightError);
+        // Lanjutkan meskipun gagal menyimpan data berat
+      }
+
+      // Set flag onboarding completed
       await AsyncStorage.setItem("onboardingCompleted", "true");
-  
+      console.log("Onboarding flag set to true in handleSaveProfile");
+      
+      // Update redux state
+      dispatch(setNeedsOnboarding(false));
+
       Alert.alert("Sukses", "Profil berhasil disimpan", [
         {
           text: "OK",
           onPress: () => {
-            // Gunakan reset untuk pindah ke Main
+            // Reset navigasi ke Main
             navigation.dispatch(
               CommonActions.reset({
                 index: 0,
@@ -222,7 +248,6 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
       setLoading(false);
     }
   };
-  
 
   const handleBackToLogin = () => {
     Alert.alert(
@@ -742,4 +767,3 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
     </KeyboardAvoidingView>
   )
 }
-
