@@ -23,18 +23,15 @@ export interface Personel {
   berat_badan: number | null
   fitness_goal: string | null
   activity_level: string | null
-  theme_preference?: string | null // Add theme preference
   id_satuankerja: number
   id_pangkat: number | null
   id_user: number
   created_at: string
   updated_at: string
-  passwordChanged: boolean
 }
 
 // Create a partial version of Personel for updates
 export interface PersonelUpdate {
-  personel?: Personel | undefined
   name?: string
   email?: string
   no_hp?: string
@@ -47,17 +44,19 @@ export interface PersonelUpdate {
   berat_badan?: number | null
   fitness_goal?: string | null
   activity_level?: string | null
-  theme_preference?: string | null // Add theme preference
   id_satuankerja?: number
   id_pangkat?: number | null
 }
 
+// Add needs_password_change field to UserProfile interface
 export interface UserProfile extends User {
   // Additional profile fields can be added here
   isVerified?: boolean
   profileImage?: string
+  needs_password_change?: boolean
 }
 
+// Update AuthState to include requiresPasswordChange
 export interface AuthState {
   user: UserProfile | null
   token: string | null
@@ -65,11 +64,9 @@ export interface AuthState {
   loading: boolean
   error: string | null
   requiresEmailVerification: boolean
+  requiresPasswordChange: boolean // Add this field
   verificationEmail: string | null
   expiresAt: string | null
-  requiresPasswordChange: boolean
-  isFirstLogin: boolean
-  needsOnboarding : boolean
 }
 
 export interface SatuanKerja {
@@ -110,9 +107,10 @@ export interface SatuanKerjaChildResponse {
   data: SatuanKerjaChild[]
 }
 
+// Update the LoginResponse interface to include needs_password_change
 export interface LoginResponse {
   message: string
-  user: UserProfile
+  user: UserProfile & { needs_password_change?: boolean }
   token: string
   expires_at: string
 }

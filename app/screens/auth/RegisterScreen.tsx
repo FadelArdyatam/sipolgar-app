@@ -140,19 +140,15 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
       ).unwrap()
 
       console.log("Registration successful:", result.message)
-      Alert.alert(
-        "Registrasi Berhasil",
-        "Akun Anda telah dibuat. Silahkan cek email Anda untuk kode verifikasi, kemudian login untuk melanjutkan.",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              // Navigate to login screen instead of email verification
-              navigation.navigate("EmailVerification")
-            },
+      Alert.alert("Sukses", result.message || "Registrasi berhasil. Silahkan cek email Anda untuk verifikasi.", [
+        {
+          text: "OK",
+          onPress: () => {
+            // Navigate to email verification screen
+            navigation.navigate("EmailVerification")
           },
-        ],
-      )
+        },
+      ])
     } catch (error) {
       console.error("Registration error:", error)
       Alert.alert("Registrasi Gagal", error instanceof Error ? error.message : "Silahkan coba lagi")

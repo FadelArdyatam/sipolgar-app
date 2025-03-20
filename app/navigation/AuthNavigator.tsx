@@ -1,4 +1,4 @@
-// Update AuthNavigator to include the ChangePassword screen
+// Update AuthNavigator to handle the improved flow
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import { useSelector } from "react-redux"
 import LoginScreen from "../screens/auth/LoginScreen"
@@ -12,11 +12,20 @@ import type { RootState } from "../store"
 const Stack = createNativeStackNavigator<AuthStackParamList>()
 
 export default function AuthNavigator() {
-  const { requiresEmailVerification } = useSelector((state: RootState) => state.auth)
+  const { requiresEmailVerification, requiresPasswordChange, user } = useSelector((state: RootState) => state.auth)
+
+  // Determine the initial route based on auth state
+  let initialRoute: keyof AuthStackParamList = "Login"
+
+  if (requiresEmailVerification) {
+    initialRoute = "EmailVerification"
+  } else if (requiresPasswordChange && user) {
+    initialRoute = "ChangePassword"
+  }
 
   return (
     <Stack.Navigator
-      initialRouteName={requiresEmailVerification ? "EmailVerification" : "Login"}
+      initialRouteName={initialRoute}
       screenOptions={{
         headerShown: false,
         animation: "slide_from_right",

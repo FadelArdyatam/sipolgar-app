@@ -92,6 +92,7 @@ export default function EmailVerificationScreen({ navigation }: EmailVerificatio
     }
   }
 
+  // Update the handleVerify function to navigate to Login after successful verification
   const handleVerify = async () => {
     const otpString = otp.join("")
     if (otpString.length !== 6) {
@@ -112,8 +113,15 @@ export default function EmailVerificationScreen({ navigation }: EmailVerificatio
       // Clear the email verification requirement
       dispatch(clearEmailVerification())
 
-      // Navigate to change password screen
-      navigation.navigate("Login")
+      // Navigate to login screen instead of change password
+      Alert.alert("Sukses", "Email berhasil diverifikasi. Silahkan login untuk melanjutkan.", [
+        {
+          text: "OK",
+          onPress: () => {
+            navigation.navigate("Login")
+          },
+        },
+      ])
     } catch (error) {
       console.error("OTP verification error:", error)
       Alert.alert("Gagal", error instanceof Error ? error.message : "Verifikasi OTP gagal. Silahkan coba lagi.")

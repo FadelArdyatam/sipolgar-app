@@ -4,13 +4,15 @@ import { View, Text, ScrollView, TouchableOpacity, Image, Alert } from "react-na
 import { useSelector, useDispatch } from "react-redux"
 import { logout } from "../store/auth/authSlice"
 import { User, Settings, LogOut, Calendar, ChevronRight, Activity, Palette } from "lucide-react-native"
-import { getSatuanKerjaDetail } from "../services/AuthServices"
+import { getSatuanKerja } from "../services/AuthServices"
 import { useEffect, useState } from "react"
 import type { RootState, AppDispatch } from "../store"
 import type { SatuanKerja } from "../types/user"
 // Update imports to use the correct navigation types
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack"
 import type { AppStackParamList } from "../types/navigation"
+// Add import for debug utility
+import { debugAuthState, resetAuthFlags } from "../utils/authDebug"
 
 type ProfileScreenProps = {
   navigation: NativeStackNavigationProp<AppStackParamList, "Profile">
@@ -27,7 +29,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
       if (user?.personel?.id_satuankerja) {
         setLoading(true)
         try {
-          const data = await getSatuanKerjaDetail(user.personel.id_satuankerja)
+          const data = await fetchSatuanKerjaDetail(user.personel.id_satuankerja)
           setSatuanKerja(data)
         } catch (error) {
           console.error("Failed to fetch satuan kerja detail:", error)
@@ -59,6 +61,13 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
         <Text>Loading profile...</Text>
       </View>
     )
+  }
+
+  const theme = {
+    border: "#e5e7eb",
+    info: "#3b82f6",
+    textSecondary: "#9ca3af",
+    text: "#4b5563",
   }
 
   return (
@@ -174,6 +183,84 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps) {
             <Text className="text-gray-800 ml-3">Pengaturan Tema</Text>
           </View>
           <ChevronRight size={18} color="#9ca3af" />
+        </TouchableOpacity>
+        {/* Add debug button at the bottom of the settings section */}
+        <TouchableOpacity
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingVertical: 12,
+            borderTopWidth: 1,
+            borderTopColor: theme.border,
+            marginTop: 8,
+          }}
+          onPress={async () => {
+            const authState = await debugAuthState()
+            Alert.alert(
+              "Auth Debug Info",
+              `Token: ${authState?.hasToken ? "Yes" : "No"}\nPassword Changed: ${authState?.passwordChanged ? "Yes" : "No"}\nOnboarding Completed: ${authState?.onboardingCompleted ? "Yes" : "No"}`,
+              [
+                {
+                  text: "OK",
+                  style: "cancel",
+                },
+                {
+                  text: "Reset Flags",
+                  onPress: () => {
+                    Alert.alert("Reset Auth Flags", "Which flags would you like to reset?", [
+                      {
+                        text: "Cancel",
+                        style: "cancel",
+                      },
+                      {
+                        text: "Password Changed",
+                        onPress: async () => {
+                          await resetAuthFlags({ passwordChanged: false })
+                          Alert.alert("Success", "Password Changed flag reset. Please logout and login again to test.")
+                        },
+                      },
+                      {
+                        text: "Onboarding",
+                        onPress: async () => {
+                          await resetAuthFlags({ onboardingCompleted: false })
+                          Alert.alert("Success", "Onboarding flag reset. Please logout and login again to test.")
+                        },
+                      },
+                      {
+                        text: "Reset Both",
+                        onPress: async () => {
+                          await resetAuthFlags({
+                            passwordChanged: false,
+                            onboardingCompleted: false,
+                          })
+                          Alert.alert("Success", "All flags reset. Please logout and login again to test.")
+                        },
+                      },
+                    ])
+                  },
+                },
+              ],
+            )
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: `${theme.info}20`,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 12,
+              }}
+            >
+              <Settings size={18} color={theme.info} />
+            </View>
+            <Text style={{ color: theme.info }}>Debug Auth State</Text>
+          </View>
+          <ChevronRight size={18} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity className="flex-row items-center justify-between py-3" onPress={handleLogout}>

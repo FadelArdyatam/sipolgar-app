@@ -5,13 +5,13 @@ export type AuthStackParamList = {
   ForgotPassword: undefined
   ResetPassword: { token: string }
   EmailVerification: undefined
-  ChangePassword: { email?: string }
+  ChangePassword: { email: string }
 }
 
 export type OnboardingStackParamList = {
-  OnboardingScreen: undefined // Changed from "Onboarding" to "OnboardingScreen"
+  Onboarding: undefined
+  Main: undefined
 }
-
 
 export type AppStackParamList = {
   Profile: undefined
@@ -20,14 +20,11 @@ export type AppStackParamList = {
   Nutrition: undefined
   Progress: undefined
   FitnessStats: undefined
-  ThemeSettings: undefined
-  WeightTracking: undefined
-  Workouts: undefined
-  WorkoutDetail: { id: number }
 }
 
 export type RootStackParamList = {
-  Auth: { screen?: keyof AuthStackParamList }
+  Auth: undefined
   Onboarding: undefined
   Main: undefined
 }
+
